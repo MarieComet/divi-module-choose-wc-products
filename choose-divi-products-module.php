@@ -27,7 +27,7 @@ function et_builder_include_products_option( $args = array() ) {
 		return '';
 	}
 		  
-	$output = "\t" . "<% var et_pb_include_products_temp = typeof et_pb_include_products !== 'undefined' ? et_pb_include_products.split( ',' ) : []; console.log(et_pb_include_products_temp) %>" . "\n";
+	$output = "\t" . "<% var et_pb_include_products_temp = typeof et_pb_include_products !== 'undefined' ? et_pb_include_products.split( ',' ) : []; %>" . "\n";
 	$args = array( 'posts_per_page' => -1, 'post_type' => 'product', 'post_status' => 'publish', 'cache_results' => false );
 	$myproducts = new WP_Query($args);
 
@@ -38,14 +38,14 @@ function et_builder_include_products_option( $args = array() ) {
 
 				$content = sprintf(
 					'<%%= _.contains( et_pb_include_products_temp, "%1$s" ) ? checked="checked" : "" %%>',
-					esc_html( $myproducts->post->post_name )
+					esc_html( $myproducts->post->ID )
 				);
 
 			    //$contains = esc_html( $post->ID );
 
 			    $output .= sprintf(
 			      '%4$s<label><input type="checkbox" name="et_pb_include_products" value="%1$s"%3$s> %2$s</label><br/>',
-			      esc_attr( $myproducts->post->post_name ),
+			      esc_attr( $myproducts->post->ID ),
 			      esc_html( get_the_title($myproducts->post->ID) ),
 			      $content,
 			      "\n\t\t\t\t\t"
