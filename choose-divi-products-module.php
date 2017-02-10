@@ -10,6 +10,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly.
 }
+
+// Display error if Divi not installed
 function MC_admin_notice() {
     ?>
     <div class="error">
@@ -17,6 +19,45 @@ function MC_admin_notice() {
     </div>  
     <?php
 }
+
+// Display product list in admin module
+function et_builder_include_products_option( $args = array() ) {
+
+	if ( ! class_exists( 'WooCommerce' ) ) {
+		return '';
+	}
+		  
+	$output = "\t" . "<% var et_pb_include_products_temp = typeof et_pb_include_products !== 'undefined' ? et_pb_include_products.split( ',' ) : []; console.log(et_pb_include_products_temp) %>" . "\n";
+	$args = array( 'posts_per_page' => -1, 'post_type' => 'product', 'post_status' => 'publish', 'cache_results' => false );
+	$myproducts = new WP_Query($args);
+
+	$output .= '<div id="et_pb_include_products">';
+
+		if( $myproducts->have_posts() ) :
+			while ( $myproducts->have_posts() ) : $myproducts->the_post();
+
+				$content = sprintf(
+					'<%%= _.contains( et_pb_include_products_temp, "%1$s" ) ? checked="checked" : "" %%>',
+					esc_html( $myproducts->post->post_name )
+				);
+
+			    //$contains = esc_html( $post->ID );
+
+			    $output .= sprintf(
+			      '%4$s<label><input type="checkbox" name="et_pb_include_products" value="%1$s"%3$s> %2$s</label><br/>',
+			      esc_attr( $myproducts->post->post_name ),
+			      esc_html( get_the_title($myproducts->post->ID) ),
+			      $content,
+			      "\n\t\t\t\t\t"
+			    );
+			endwhile;
+
+			wp_reset_postdata();
+		endif;
+	$output .= '</div>';
+	return apply_filters( 'et_builder_include_products_option', $output );
+}
+
 function MC_Custom_Module() {
 	if(class_exists("ET_Builder_Module")){
 		class ET_Builder_Module_Product_Choose extends ET_Builder_Module {
@@ -24,6 +65,7 @@ function MC_Custom_Module() {
 				$this->name = esc_html__( 'Produits choisis', 'et_builder' );
 				$this->slug = 'et_pb_choose_shop';
 				$this->custom_css_tab = false;
+				$this->fb_support = false;
 
 				$this->whitelisted_fields = array(
 					'type',
@@ -50,23 +92,6 @@ function MC_Custom_Module() {
 
 			function get_fields() {
 				$fields = array(
-					'type' => array(
-						'label'           => esc_html__( 'Type', 'et_builder' ),
-						'type'            => 'select',
-						'option_category' => 'basic_option',
-						'options'         => array(
-							'recent'  => esc_html__( 'Recent Products', 'et_builder' ),
-							'featured' => esc_html__( 'Featured Products', 'et_builder' ),
-							'sale' => esc_html__( 'Sale Products', 'et_builder' ),
-							'best_selling' => esc_html__( 'Best Selling Products', 'et_builder' ),
-							'top_rated' => esc_html__( 'Top Rated Products', 'et_builder' ),
-							'product_category' => esc_html__( 'Product Category', 'et_builder' ),
-						),
-						'affects'            => array(
-							'input[name="et_pb_include_categories"]',
-						),
-						'description'        => esc_html__( 'Choose which type of products you would like to display.', 'et_builder' ),
-					),
 					'include_products' => array(
 						'label'            => __( 'Produits à afficher', 'et_builder' ),
 						'option_category'  => 'basic_option',
@@ -171,7 +196,6 @@ function MC_Custom_Module() {
 			}
 
 			function get_shop() {
-				$type                    = $this->shortcode_atts['type'];
 				$include_products      = $this->shortcode_atts['include_products'];
 				$orderby                 = $this->shortcode_atts['orderby'];
 				$columns                 = $this->shortcode_atts['columns_number'];
@@ -254,7 +278,6 @@ function MC_Custom_Module() {
 			function shortcode_callback( $atts, $content = null, $function_name ) {
 				$module_id               = $this->shortcode_atts['module_id'];
 				$module_class            = $this->shortcode_atts['module_class'];
-				$type                    = $this->shortcode_atts['type'];
 				$include_products	     = $this->shortcode_atts['include_products'];
 				$orderby                 = $this->shortcode_atts['orderby'];
 				$columns                 = $this->shortcode_atts['columns_number'];
@@ -362,49 +385,20 @@ function MC_Custom_Module() {
 				return $args;
 			}
 		}
-		new ET_Builder_Module_Product_Choose;
+		
+		$et_builder_choose_shop = new ET_Builder_Module_Product_Choose();
+		add_shortcode( 'et_pb_choose_shop', array($et_builder_choose_shop, '_shortcode_callback') );
 
-		function et_builder_include_products_option( $args = array() ) {
-				  
-			$output = "\t" . "<% var et_pb_include_products_temp = typeof et_pb_include_products !== 'undefined' ? et_pb_include_products.split( ',' ) : []; %>" . "\n";
-			$myproducts = get_posts( array( 'posts_per_page' => -1, 'post_type' => 'product' ) );
-				foreach ( $myproducts as $post ) {
-				    $contains = sprintf(
-				      '<%%= _.contains( et_pb_include_products_temp, "%1$s" ) ? checked="checked" : "" %%>',
-				      esc_html( $post->ID )
-				    );
 
-				    $output .= sprintf(
-				      '%4$s<label><input type="checkbox" name="et_pb_include_products" value="%1$s"%3$s> %2$s</label><br/>',
-				      esc_attr( $post->ID ),
-				      esc_html( get_the_title($post) ),
-				      $contains,
-				      "\n\t\t\t\t\t"
-				    );
-				}
-			$output = '<div id="et_pb_include_products">' . $output . '</div>';
-			return $output;
-		}
+		// Need to clear cache template to update product list in admin in case produt added/deleted/updated status
+		// Note 'product' after 'save_post' : trigger only for product post_type !
+		// see function et_pb_force_regenerate_templates in Divi/includes/builder/core.php and https://codex.wordpress.org/Plugin_API/Action_Reference/save_post#Custom_Post_Type:_.27book.27
+		add_action( 'save_post_product', 'et_pb_force_regenerate_templates' );
+
 	} else {
 		add_action( 'admin_notices', 'MC_admin_notice' );      
 		return;
 	}
 }
 
-add_action('after_setup_theme', 'MC_prepareCustomModule', 999);
-function MC_prepareCustomModule(){
-	global $pagenow;
-
-	$is_admin = is_admin();
-	$action_hook = $is_admin ? 'wp_loaded' : 'wp';
-	$required_admin_pages = array( 'edit.php', 'post.php', 'post-new.php', 'admin.php', 'customize.php', 'edit-tags.php', 'admin-ajax.php', 'export.php' ); // list of admin pages where we need to load builder files
-	$specific_filter_pages = array( 'edit.php', 'admin.php', 'edit-tags.php' ); // list of admin pages where we need more specific filtering
-	$is_edit_library_page = 'edit.php' === $pagenow && isset( $_GET['post_type'] ) && 'et_pb_layout' === $_GET['post_type'];
-	$is_role_editor_page = 'admin.php' === $pagenow && isset( $_GET['page'] ) && 'et_divi_role_editor' === $_GET['page'];
-	$is_import_page = 'admin.php' === $pagenow && isset( $_GET['import'] ) && 'wordpress' === $_GET['import']; // Page Builder files should be loaded on import page as well to register the et_pb_layout post type properly
-	$is_edit_layout_category_page = 'edit-tags.php' === $pagenow && isset( $_GET['taxonomy'] ) && 'layout_category' === $_GET['taxonomy'];
-
-	if ( ! $is_admin || ( $is_admin && in_array( $pagenow, $required_admin_pages ) && ( ! in_array( $pagenow, $specific_filter_pages ) || $is_edit_library_page || $is_role_editor_page || $is_edit_layout_category_page || $is_import_page ) ) ) {
-		add_action($action_hook, 'MC_Custom_Module', 9789);
-	}
-}
+add_action('et_builder_ready', 'MC_Custom_Module');
