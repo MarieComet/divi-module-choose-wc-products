@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Display error if Divi not installed
-function MC_admin_notice() {
+function MC_products_admin_notice() {
     ?>
     <div class="error">
         <p><?php _e( 'Divi Module Choose WC Products requires Divi theme to work !', 'Divi' ); ?></p>
@@ -21,7 +21,7 @@ function MC_admin_notice() {
 }
 
 // Display product list in admin module
-function et_builder_include_products_option( $args = array() ) {
+function et_builder_mc_include_products_option( $args = array() ) {
 
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		return '';
@@ -55,12 +55,12 @@ function et_builder_include_products_option( $args = array() ) {
 			wp_reset_postdata();
 		endif;
 	$output .= '</div>';
-	return apply_filters( 'et_builder_include_products_option', $output );
+	return apply_filters( 'et_builder_mc_include_products_option', $output );
 }
 
-function MC_Custom_Module() {
+function MC_Product_Custom_Module() {
 	if(class_exists("ET_Builder_Module")){
-		class ET_Builder_Module_Product_Choose extends ET_Builder_Module {
+		class ET_Builder_MC_Module_Product_Choose extends ET_Builder_Module {
 			function init() {
 				$this->name = esc_html__( 'Produits choisis', 'et_builder' );
 				$this->slug = 'et_pb_choose_shop';
@@ -95,7 +95,7 @@ function MC_Custom_Module() {
 					'include_products' => array(
 						'label'            => __( 'Produits à afficher', 'et_builder' ),
 						'option_category'  => 'basic_option',
-						'renderer'         => 'et_builder_include_products_option',				
+						'renderer'         => 'et_builder_mc_include_products_option',				
 						'description'      => __( 'Choose which products you would like to include in the feed.', 'et_builder' ),
 					),
 					'columns_number' => array(
@@ -386,7 +386,7 @@ function MC_Custom_Module() {
 			}
 		}
 		
-		$et_builder_choose_shop = new ET_Builder_Module_Product_Choose();
+		$et_builder_choose_shop = new ET_Builder_MC_Module_Product_Choose();
 		add_shortcode( 'et_pb_choose_shop', array($et_builder_choose_shop, '_shortcode_callback') );
 
 
@@ -396,9 +396,9 @@ function MC_Custom_Module() {
 		add_action( 'save_post_product', 'et_pb_force_regenerate_templates' );
 
 	} else {
-		add_action( 'admin_notices', 'MC_admin_notice' );      
+		add_action( 'admin_notices', 'MC_products_admin_notice' );
 		return;
 	}
 }
 
-add_action('et_builder_ready', 'MC_Custom_Module');
+add_action('et_builder_ready', 'MC_Product_Custom_Module');
